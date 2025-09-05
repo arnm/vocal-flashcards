@@ -1,13 +1,14 @@
 "use client";
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { getAudioContextCtor } from "~/lib/audio";
-import { FLASHCARD_TOOLS } from "../../tools";
+import { FLASHCARD_TOOLS } from "./tools";
+import { SYSTEM_PROMPT } from "./system-prompt";
 import type {
 	ChatMessage,
 	ProviderAdapter,
 	ProviderAdapterState,
 	RealtimeCapabilities,
-} from "../../types";
+} from "./types";
 
 export class OpenAIAdapter implements ProviderAdapter {
 	private client: RealtimeClient | null = null;
@@ -177,8 +178,7 @@ export class OpenAIAdapter implements ProviderAdapter {
 				input_audio_transcription: { model: "whisper-1" },
 				turn_detection: { type: "server_vad" },
 				temperature: 0.8,
-				instructions:
-					"You are a helpful language learning assistant. Please respond only in English. Keep your responses conversational and encouraging for language learners. You have access to flashcard tools to help with practice sessions - you can get the current flashcard, flip it to show the answer, advance to the next card, or restart the deck.",
+				instructions: SYSTEM_PROMPT,
 			});
 			// Tools
 			for (const tool of FLASHCARD_TOOLS)

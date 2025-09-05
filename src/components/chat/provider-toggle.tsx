@@ -1,6 +1,6 @@
 "use client";
-import type { RealtimeProvider } from "~/app/realtime/types";
 import { Button } from "~/components/ui/button";
+import type { RealtimeProvider } from "~/lib/realtime/types";
 
 export function ProviderToggle(props: {
 	provider: RealtimeProvider;

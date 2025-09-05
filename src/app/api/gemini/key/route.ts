@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
-import { env } from "~/env";
+import { getGeminiApiKey } from "~/server/realtime/gemini-key";
 
 export async function POST() {
 	try {
-		const apiKey = env.GEMINI_API_KEY;
-
-		if (!apiKey) {
-			return NextResponse.json(
-				{ error: "Gemini API key not configured" },
-				{ status: 500 },
-			);
-		}
-
+		const { apiKey } = getGeminiApiKey();
 		return NextResponse.json({ apiKey });
 	} catch (error) {
 		console.error("Error providing Gemini API key:", error);

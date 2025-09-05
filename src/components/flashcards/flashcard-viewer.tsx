@@ -2,7 +2,7 @@
 import { ArrowRight, Eye, RotateCcw } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { useFlashcardsStore } from "~/lib/flashcardsStore";
+import { useFlashcardsStore } from "~/lib/flashcards/flashcards-store";
 
 export function FlashcardViewer() {
 	const {

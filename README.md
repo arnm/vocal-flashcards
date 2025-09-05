@@ -1,18 +1,14 @@
 # 🎤 Vocal Flashcards
 
-> **A comprehensive reference implementation for building realtime voice applications with OpenAI and Gemini APIs**
+A voice-enabled flashcard application showcasing realtime AI integration with OpenAI and Gemini APIs. Perfect for language learning and demonstrating modern voice AI implementation patterns.
 
-This educational repository demonstrates how to integrate cutting-edge voice AI technologies into modern web applications. Perfect for developers looking to understand and implement realtime voice interactions in their own projects.
+## ✨ Features
 
-## 🌟 What You'll Learn
-
-This app showcases real-world implementation of:
-
-- **OpenAI Realtime API** - Bidirectional voice chat with streaming audio and tool calls
-- **Google Gemini Live** - Advanced text interactions with tool calling capabilities
-- **Unified Provider Interface** - Clean abstraction layer for switching between AI providers
-- **Voice Processing** - Audio worklets, real-time streaming, and voice activity detection
-- **Modern React Patterns** - State management, TypeScript, and component architecture
+- **Voice Interaction** - Practice flashcards using natural speech with OpenAI Realtime API
+- **AI Provider Switching** - Toggle between OpenAI and Gemini providers seamlessly
+- **Smart Audio Processing** - Voice activity detection and real-time streaming
+- **Modern UI** - Built with Next.js 15, React 19, and Tailwind CSS
+- **Theme Support** - Light/dark mode toggle
 
 ## 🚀 Quick Start
 
@@ -24,34 +20,40 @@ cp .env.example .env  # Add your API keys
 bun run dev
 ```
 
-**Environment Setup:**
-```bash
+**Required Environment Variables:**
+```env
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=AIza...  # Optional, for Gemini provider
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and start exploring!
+Open [http://localhost:3000](http://localhost:3000) to start learning!
 
-## 🔧 Key Features to Study
+## 🏗️ Architecture
 
-- ✅ **Runtime Provider Switching** - Toggle between OpenAI and Gemini without page reload
-- ✅ **Voice Activity Detection** - Smart audio processing and silence detection
-- ✅ **Tool Calling** - AI agents that can interact with your application state
+**Key Components:**
+- `src/components/chat/` - Voice interaction and provider switching
+- `src/components/flashcards/` - Flashcard display and navigation
+- `src/lib/realtime/` - AI provider adapters and abstractions
+- `src/lib/flashcards/` - Zustand store for flashcard state
+- `src/hooks/use-realtime.ts` - Custom hook for voice interactions
 
-## 🏗️ Architecture Highlights
+**Tech Stack:**
+- Next.js 15 (App Router) + React 19
+- TypeScript 5.8 with strict mode
+- Tailwind CSS 4.0 + Radix UI
+- Zustand for state management
+- Biome for linting/formatting
 
-- **Provider Abstraction** (`src/app/realtime/providers/`) - Clean interfaces for different AI providers
-- **Audio Processing** (`src/lib/audio*.ts`) - Real-time audio handling and worklets
-- **State Management** (`src/lib/flashcardsStore.ts`) - Zustand for predictable state updates
+## 📚 Development
 
-## 📚 Development Guide
+**Commands:**
+- `bun run dev` - Start development server with Turbo
+- `bun run build` - Build for production
+- `bun run typecheck` - TypeScript type checking
+- `bun run check` - Lint and format with Biome
 
-For detailed development information including build commands, code style guidelines, and technical specifications, see [AGENTS.md](./AGENTS.md).
-
-## 🤝 Contributing
-
-Found a bug or have an improvement? Contributions are welcome! This is an educational resource, so clear, well-documented code is especially appreciated.
+See [AGENTS.md](./AGENTS.md) for detailed development guidelines and code conventions.
 
 ---
 
-*This project serves as a reference implementation and learning resource for the developer community. Feel free to use it as a starting point for your own voice-enabled applications!*
+*A reference implementation for building voice-enabled applications with modern web technologies.*

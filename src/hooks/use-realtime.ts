@@ -1,12 +1,12 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GeminiAdapter } from "./providers/gemini/adapter";
-import { OpenAIAdapter } from "./providers/openai/adapter";
+import { GeminiAdapter } from "~/lib/realtime/gemini-adapter";
+import { OpenAIAdapter } from "~/lib/realtime/openai-adapter";
 import type {
 	ProviderAdapter,
 	RealtimeProvider,
 	RealtimeSession,
-} from "./types";
+} from "~/lib/realtime/types";
 
 function makeAdapter(provider: RealtimeProvider): ProviderAdapter {
 	if (provider === "openai") return new OpenAIAdapter();

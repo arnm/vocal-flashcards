@@ -2,8 +2,8 @@ import "~/styles/globals.css";
 
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { ModeToggle } from "~/components/mode-toggle";
-import { ThemeProvider } from "./theme-provider";
+import { ModeToggle } from "~/components/theme/mode-toggle";
+import { ThemeProvider } from "~/components/theme/theme-provider";
 
 export const metadata: Metadata = {
 	title: "Create T3 App",

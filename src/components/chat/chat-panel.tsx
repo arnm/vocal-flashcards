@@ -2,12 +2,12 @@
 import { ArrowDown, Mic, RotateCcw, Send, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { FlashcardViewer } from "~/components/FlashcardViewer";
-import { ProviderToggle } from "~/components/ProviderToggle";
+import { ProviderToggle } from "~/components/chat/provider-toggle";
+import { FlashcardViewer } from "~/components/flashcards/flashcard-viewer";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { useRealtime } from "./useRealtime";
+import { useRealtime } from "~/hooks/use-realtime";
 
 interface MessageForm {
 	message: string;

@@ -9,13 +9,14 @@ import {
 	type Session,
 } from "@google/genai";
 import { getAudioContextCtor } from "~/lib/audio";
-import { FLASHCARD_TOOLS } from "../../tools";
+import { FLASHCARD_TOOLS } from "./tools";
+import { SYSTEM_PROMPT } from "./system-prompt";
 import type {
+	ChatMessage,
 	ProviderAdapter,
 	ProviderAdapterState,
 	RealtimeCapabilities,
-	ChatMessage,
-} from "../../types";
+} from "./types";
 
 export class GeminiAdapter implements ProviderAdapter {
 	private ai: GoogleGenAI | null = null;
@@ -357,8 +358,7 @@ export class GeminiAdapter implements ProviderAdapter {
 					realtimeInputConfig: {
 						automaticActivityDetection: { disabled: false },
 					},
-					systemInstruction:
-						"You are a helpful language learning assistant. You can help users practice with flashcards and answer questions about language learning. You have access to flashcard tools to help with practice sessions - you can get the current flashcard, flip it to show the answer, advance to the next card, or restart the deck. Respond concisely in speech.",
+					systemInstruction: SYSTEM_PROMPT,
 					tools: [
 						{
 							functionDeclarations: FLASHCARD_TOOLS.map((tool) => ({

@@ -1,4 +1,4 @@
-import { useFlashcardsStore } from "~/lib/flashcardsStore";
+import { useFlashcardsStore } from "~/lib/flashcards/flashcards-store";
 import type { RealtimeTool } from "./types";
 
 export const FLASHCARD_TOOLS: RealtimeTool[] = [
@@ -69,11 +69,3 @@ export const FLASHCARD_TOOLS: RealtimeTool[] = [
 		},
 	},
 ];
-
-export function toOpenAITools(tools: RealtimeTool[]) {
-	return tools.map((t) => ({
-		name: t.name,
-		description: t.description,
-		parameters: t.parameters,
-	}));
-}
