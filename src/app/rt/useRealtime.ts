@@ -1,6 +1,7 @@
 "use client";
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getAudioContextCtor } from "~/lib/audio";
 import { useFlashcardsStore } from "~/lib/flashcardsStore";
 
 interface ChatMessage {
@@ -23,11 +24,10 @@ export function useRealtime() {
 		try {
 			// Initialize AudioContext if needed with proper sample rate
 			if (!outputAudioCtxRef.current) {
-				const AudioContextCtor =
-					window.AudioContext ||
-					(window as unknown as { webkitAudioContext: typeof AudioContext })
-						.webkitAudioContext;
-				outputAudioCtxRef.current = new AudioContextCtor({ sampleRate: 24000 });
+				const AudioContextClass = getAudioContextCtor();
+				outputAudioCtxRef.current = new AudioContextClass({
+					sampleRate: 24000,
+				});
 			}
 
 			const audioCtx = outputAudioCtxRef.current;
@@ -119,8 +119,7 @@ export function useRealtime() {
 		micStreamRef.current = stream;
 
 		// Create AudioContext with proper type handling
-		const AudioContextClass =
-			window.AudioContext || (window as any).webkitAudioContext;
+		const AudioContextClass = getAudioContextCtor();
 		const audioCtx = new AudioContextClass();
 		audioCtxRef.current = audioCtx;
 
