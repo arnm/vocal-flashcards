@@ -88,10 +88,7 @@ export default function VoiceRealtime() {
 
 	return (
 		<div className="flex w-full max-w-3xl flex-col gap-6">
-			<div className="flex items-center justify-between">
-				<h1 className="font-medium text-muted-foreground text-sm">
-					Realtime Provider
-				</h1>
+			<div className="flex items-center justify-center">
 				<ProviderToggle provider={provider} onChangeAction={setProvider} />
 			</div>
 			<FlashcardViewer />

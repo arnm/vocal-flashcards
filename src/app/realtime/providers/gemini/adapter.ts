@@ -24,8 +24,6 @@ export class GeminiAdapter implements ProviderAdapter {
 	private inputAudioCtx: AudioContext | null = null;
 	private outputAudioCtx: AudioContext | null = null;
 	private nextPlayTime = 0;
-	private flushTimer: number | null = null;
-	private lastFrameTime = 0;
 
 	private state: ProviderAdapterState = {
 		active: false,
@@ -80,18 +78,10 @@ export class GeminiAdapter implements ProviderAdapter {
 		const source = audioCtx.createMediaStreamSource(stream);
 		const processor = audioCtx.createScriptProcessor(1024, 1, 1);
 
-		let flushed = false;
-		let frameCount = 0;
-
 		processor.onaudioprocess = (e: AudioProcessingEvent) => {
 			if (!this.session || !this.state.active) return;
 			const input = e.inputBuffer.getChannelData(0);
 			if (!input) return;
-
-			let sum = 0;
-			for (let i = 0; i < input.length; i++)
-				sum += (input[i] ?? 0) * (input[i] ?? 0);
-			const rms = Math.sqrt(sum / input.length);
 
 			const int16 = new Int16Array(input.length);
 			for (let i = 0; i < input.length; i++) {
@@ -99,30 +89,7 @@ export class GeminiAdapter implements ProviderAdapter {
 				int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
 			}
 			this.sendAudioFrame(int16);
-			this.lastFrameTime = performance.now();
-			flushed = false;
-
-			frameCount++;
-			if (frameCount % 10 === 0) {
-				console.log(
-					`[gemini-live] frame ${frameCount}, RMS: ${rms.toFixed(5)}, sampleRate: ${audioCtx.sampleRate}`,
-				);
-			}
 		};
-
-		this.flushTimer = window.setInterval(() => {
-			if (!this.session || !this.state.active) return;
-			const now = performance.now();
-			if (!flushed && now - this.lastFrameTime > 1200) {
-				try {
-					this.session.sendRealtimeInput({ audioStreamEnd: true });
-					console.log("[gemini-live] auto audioStreamEnd");
-					flushed = true;
-				} catch (e) {
-					console.warn("[gemini-live] audioStreamEnd error", e);
-				}
-			}
-		}, 400);
 
 		source.connect(processor);
 		processor.connect(audioCtx.destination);
@@ -430,10 +397,6 @@ export class GeminiAdapter implements ProviderAdapter {
 
 	stop(): void {
 		try {
-			if (this.flushTimer) {
-				clearInterval(this.flushTimer);
-				this.flushTimer = null;
-			}
 			if (this.session) {
 				this.session.close();
 				this.session = null;
@@ -455,7 +418,6 @@ export class GeminiAdapter implements ProviderAdapter {
 			console.error("[gemini-live] Stop error", error);
 		}
 		this.nextPlayTime = 0;
-		this.lastFrameTime = 0;
 		this.currentInputTranscription = "";
 		this.currentOutputTranscription = "";
 		this.inputTranscriptionMsgId = null;
