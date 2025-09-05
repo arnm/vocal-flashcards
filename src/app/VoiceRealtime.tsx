@@ -3,6 +3,7 @@ import { ArrowDown, Mic, RotateCcw, Send, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FlashcardViewer } from "~/components/FlashcardViewer";
+import { ProviderToggle } from "~/components/ProviderToggle";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -13,7 +14,16 @@ interface MessageForm {
 }
 
 export default function VoiceRealtime() {
-	const { active, start, stop, chat, sendUserText, reset } = useRealtime();
+	const {
+		active,
+		start,
+		stop,
+		chat,
+		sendUserText,
+		reset,
+		provider,
+		setProvider,
+	} = useRealtime();
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const [autoScroll, setAutoScroll] = useState(true);
 
@@ -78,10 +88,16 @@ export default function VoiceRealtime() {
 
 	return (
 		<div className="flex w-full max-w-3xl flex-col gap-6">
+			<div className="flex items-center justify-between">
+				<h1 className="font-medium text-muted-foreground text-sm">
+					Realtime Provider
+				</h1>
+				<ProviderToggle provider={provider} onChangeAction={setProvider} />
+			</div>
 			<FlashcardViewer />
 
 			<div className="relative w-full overflow-hidden rounded-2xl border border-border/40 bg-background/50 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/30">
-				<ScrollArea className="h-80 pb-16 pr-3" ref={scrollAreaRef}>
+				<ScrollArea className="h-80 pr-3 pb-16" ref={scrollAreaRef}>
 					<div className="flex flex-col gap-3 p-4">
 						{chat.map(
 							(message: {
@@ -98,7 +114,7 @@ export default function VoiceRealtime() {
 										className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ring-1 transition ${
 											message.role === "user"
 												? "bg-primary/90 text-primary-foreground ring-primary/40"
-												: "bg-background/60 backdrop-blur-sm ring-border/40"
+												: "bg-background/60 ring-border/40 backdrop-blur-sm"
 										} ${message.isStreaming ? "opacity-70" : "opacity-100"}`}
 									>
 										<span>
@@ -115,7 +131,7 @@ export default function VoiceRealtime() {
 							),
 						)}
 						{!chat.length && (
-							<div className="text-center text-sm text-muted-foreground">
+							<div className="text-center text-muted-foreground text-sm">
 								No messages yet. Use the mic or type a message.
 							</div>
 						)}
@@ -136,7 +152,7 @@ export default function VoiceRealtime() {
 					</div>
 				)}
 
-				<div className="absolute inset-x-0 bottom-0 border-t border-border/40 bg-background/80 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+				<div className="absolute inset-x-0 bottom-0 border-border/40 border-t bg-background/80 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 					<div className="flex items-center gap-2">
 						<Button
 							variant="ghost"
@@ -169,8 +185,8 @@ export default function VoiceRealtime() {
 									size="icon"
 									className={`h-7 w-7 rounded-full ${
 										active
-											? "bg-red-500 hover:bg-red-500/90 text-white"
-											: "bg-primary hover:bg-primary/90 text-primary-foreground"
+											? "bg-red-500 text-white hover:bg-red-500/90"
+											: "bg-primary text-primary-foreground hover:bg-primary/90"
 									}`}
 									title={active ? "Stop recording" : "Start recording"}
 								>

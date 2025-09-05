@@ -1,6 +1,26 @@
-# Create T3 App
+# Vocal Flashcards
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A realtime voice-enabled flashcard application built with the T3 Stack, supporting both OpenAI Realtime API and Google Gemini Live.
+
+## Realtime Providers
+
+This app supports multiple realtime AI providers through a unified interface:
+
+- **OpenAI Realtime**: Full voice chat with bidirectional audio, text streaming, and tool calls
+- **Gemini Live**: Text-based interaction with tool calls (audio support coming soon)
+
+### Environment Setup
+
+Required environment variables:
+
+```bash
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...  # Optional, for Gemini provider
+```
+
+### Provider Toggle
+
+Use the provider toggle in the UI to switch between OpenAI and Gemini at runtime. The app maintains separate chat states per provider.
 
 ## What's next? How do I make an app with this?
 
