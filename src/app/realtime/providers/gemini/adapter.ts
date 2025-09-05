@@ -14,6 +14,7 @@ import type {
 	ProviderAdapter,
 	ProviderAdapterState,
 	RealtimeCapabilities,
+	ChatMessage,
 } from "../../types";
 
 export class GeminiAdapter implements ProviderAdapter {
@@ -32,6 +33,12 @@ export class GeminiAdapter implements ProviderAdapter {
 		error: null,
 	};
 	private listeners = new Set<() => void>();
+
+	// Track transcription accumulation for current turn
+	private currentInputTranscription = "";
+	private currentOutputTranscription = "";
+	private inputTranscriptionMsgId: string | null = null;
+	private outputTranscriptionMsgId: string | null = null;
 
 	private notify(): void {
 		for (const l of this.listeners) l();
@@ -58,11 +65,9 @@ export class GeminiAdapter implements ProviderAdapter {
 		});
 		this.micStream = stream;
 		const AudioContextClass = getAudioContextCtor();
-		// Don't force 16kHz - let browser use native rate
-		const audioCtx = new AudioContextClass();
+		const audioCtx = new AudioContextClass(); // native rate
 		this.inputAudioCtx = audioCtx;
 
-		// Ensure audio context is resumed
 		if (audioCtx.state === "suspended") {
 			try {
 				await audioCtx.resume();
@@ -76,7 +81,6 @@ export class GeminiAdapter implements ProviderAdapter {
 		const processor = audioCtx.createScriptProcessor(1024, 1, 1);
 
 		let flushed = false;
-
 		let frameCount = 0;
 
 		processor.onaudioprocess = (e: AudioProcessingEvent) => {
@@ -84,21 +88,16 @@ export class GeminiAdapter implements ProviderAdapter {
 			const input = e.inputBuffer.getChannelData(0);
 			if (!input) return;
 
-			// Calculate RMS for debugging
 			let sum = 0;
-			for (let i = 0; i < input.length; i++) {
-				const v = input[i] ?? 0;
-				sum += v * v;
-			}
+			for (let i = 0; i < input.length; i++)
+				sum += (input[i] ?? 0) * (input[i] ?? 0);
 			const rms = Math.sqrt(sum / input.length);
 
-			// Convert Float32Array to Int16Array for PCM
 			const int16 = new Int16Array(input.length);
 			for (let i = 0; i < input.length; i++) {
 				const s = Math.max(-1, Math.min(1, input[i] ?? 0));
 				int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
 			}
-
 			this.sendAudioFrame(int16);
 			this.lastFrameTime = performance.now();
 			flushed = false;
@@ -111,7 +110,6 @@ export class GeminiAdapter implements ProviderAdapter {
 			}
 		};
 
-		// Silence flush timer
 		this.flushTimer = window.setInterval(() => {
 			if (!this.session || !this.state.active) return;
 			const now = performance.now();
@@ -132,23 +130,19 @@ export class GeminiAdapter implements ProviderAdapter {
 
 	private sendAudioFrame(int16: Int16Array): void {
 		if (!this.session) return;
-
 		try {
 			const buffer = new ArrayBuffer(int16.byteLength);
 			const view = new DataView(buffer);
 			for (let i = 0; i < int16.length; i++)
 				view.setInt16(i * 2, int16[i] ?? 0, true);
-
 			let binary = "";
 			const bytes = new Uint8Array(buffer);
 			for (let i = 0; i < bytes.length; i++)
 				binary += String.fromCharCode(bytes[i] ?? 0);
 			const base64Audio = btoa(binary);
-
-			// Use sendRealtimeInput with automatic VAD
 			const rate = this.inputAudioCtx?.sampleRate || 16000;
 			console.log(
-				`[gemini-live] sending audio: ${base64Audio.length} base64 chars, rate: ${rate}, bytes: ${int16.length * 2}`,
+				`[gemini-live] sending audio: ${base64Audio.length} base64 chars, rate: ${Math.round(rate)}, bytes: ${int16.length * 2}`,
 			);
 			this.session.sendRealtimeInput({
 				audio: {
@@ -163,43 +157,27 @@ export class GeminiAdapter implements ProviderAdapter {
 
 	private async playAudioChunk(audioData: Int16Array) {
 		try {
-			console.log(
-				"[gemini-live] Playing audio chunk, samples:",
-				audioData.length,
-			);
 			if (!this.outputAudioCtx) {
 				const AudioContextClass = getAudioContextCtor();
 				this.outputAudioCtx = new AudioContextClass({ sampleRate: 24000 });
 				console.log(
-					"[gemini-live] Created output audio context, sample rate:",
+					"[gemini-live] Created output audio context",
 					this.outputAudioCtx.sampleRate,
 				);
 			}
 			const audioCtx = this.outputAudioCtx;
 			if (!audioCtx) return;
-			if (audioCtx.state === "suspended") {
-				console.log("[gemini-live] Resuming suspended audio context");
-				await audioCtx.resume();
-			}
-			console.log("[gemini-live] Audio context state:", audioCtx.state);
+			if (audioCtx.state === "suspended") await audioCtx.resume();
 			const buffer = audioCtx.createBuffer(1, audioData.length, 24000);
 			const channelData = buffer.getChannelData(0);
-			for (let i = 0; i < audioData.length; i++) {
-				const sample = audioData[i] ?? 0;
-				channelData[i] = sample / 0x8000;
-			}
+			for (let i = 0; i < audioData.length; i++)
+				channelData[i] = (audioData[i] ?? 0) / 0x8000;
 			const source = audioCtx.createBufferSource();
 			source.buffer = buffer;
 			source.connect(audioCtx.destination);
 			const now = audioCtx.currentTime;
 			if (this.nextPlayTime < now - 0.1) this.nextPlayTime = now;
 			const when = Math.max(now, this.nextPlayTime);
-			console.log(
-				"[gemini-live] Starting audio playback at:",
-				when,
-				"duration:",
-				buffer.duration,
-			);
 			source.start(when);
 			this.nextPlayTime = when + buffer.duration;
 		} catch (err) {
@@ -207,30 +185,88 @@ export class GeminiAdapter implements ProviderAdapter {
 		}
 	}
 
+	private updateOrInsertTranscription(
+		role: "user" | "assistant",
+		chunk: string,
+		isInput: boolean,
+	) {
+		if (chunk.trim() === "<noise>") return; // skip noise tokens
+		if (isInput) this.currentInputTranscription += chunk;
+		else this.currentOutputTranscription += chunk;
+		const text = isInput
+			? this.currentInputTranscription
+			: this.currentOutputTranscription;
+		let msgId = isInput
+			? this.inputTranscriptionMsgId
+			: this.outputTranscriptionMsgId;
+		if (msgId) {
+			const idx = this.state.chat.findIndex((m) => m.id === msgId);
+			if (idx !== -1) {
+				const baseCandidate = this.state.chat[idx];
+				if (baseCandidate) {
+					const updated: ChatMessage = {
+						id: baseCandidate.id,
+						role: baseCandidate.role,
+						text,
+						isStreaming: true,
+					};
+					this.state.chat = [
+						...this.state.chat.slice(0, idx),
+						updated,
+						...this.state.chat.slice(idx + 1),
+					];
+					this.notify();
+					return;
+				}
+			}
+		}
+		msgId = `${role}_transcription_${Date.now()}_${Math.random()}`;
+		if (isInput) this.inputTranscriptionMsgId = msgId;
+		else this.outputTranscriptionMsgId = msgId;
+		const newMsg: ChatMessage = { id: msgId, role, text, isStreaming: true };
+		this.state.chat = [...this.state.chat, newMsg];
+		this.notify();
+	}
+
+	private finalizeStreamingMessages(): void {
+		const ids = [
+			this.inputTranscriptionMsgId,
+			this.outputTranscriptionMsgId,
+		].filter((id): id is string => !!id);
+		if (!ids.length) return;
+		let changed = false;
+		const newChat = this.state.chat.map((m) => {
+			if (ids.includes(m.id) && m.isStreaming) {
+				changed = true;
+				return { ...m, isStreaming: false };
+			}
+			return m;
+		});
+		if (changed) {
+			this.state.chat = newChat;
+			this.notify();
+		}
+	}
+
 	private handleMessage(message: LiveServerMessage): void {
 		try {
-			console.log(
-				"[gemini-live] Message received:",
-				JSON.stringify(message, null, 2),
-			);
-
-			// Log transcriptions for debugging
-			if (message.serverContent?.inputTranscription) {
-				console.log(
-					"[gemini-live] Input transcription:",
+			// Transcriptions
+			if (message.serverContent?.inputTranscription?.text) {
+				this.updateOrInsertTranscription(
+					"user",
 					message.serverContent.inputTranscription.text,
+					true,
 				);
 			}
-			if (message.serverContent?.outputTranscription) {
-				console.log(
-					"[gemini-live] Output transcription:",
+			if (message.serverContent?.outputTranscription?.text) {
+				this.updateOrInsertTranscription(
+					"assistant",
 					message.serverContent.outputTranscription.text,
+					false,
 				);
 			}
 
 			let hasAudioResponse = false;
-
-			// Handle audio data
 			if (message.serverContent?.modelTurn?.parts) {
 				for (const part of message.serverContent.modelTurn.parts) {
 					if (
@@ -238,36 +274,41 @@ export class GeminiAdapter implements ProviderAdapter {
 						part.inlineData?.mimeType?.startsWith("audio/")
 					) {
 						try {
-							console.log(
-								"[gemini-live] Playing audio response, data length:",
-								part.inlineData.data.length,
-							);
 							const audioData = this.base64ToInt16Array(part.inlineData.data);
 							this.playAudioChunk(audioData);
 							hasAudioResponse = true;
-						} catch (error) {
-							console.error("[gemini-live] Error playing audio:", error);
+						} catch (e) {
+							console.error("[gemini-live] Error playing audio", e);
 						}
 					}
 				}
 			}
 
-			// Add placeholder message for audio-only responses
-			if (hasAudioResponse && message.serverContent?.turnComplete) {
-				const messageId = `assistant_${Date.now()}_${Math.random()}`;
-				this.state.chat.push({
-					id: messageId,
-					role: "assistant",
-					text: "🎵 [Audio response]",
-					isStreaming: false,
-				});
-				this.notify();
+			if (message.serverContent?.turnComplete) {
+				const hadOutput = !!this.outputTranscriptionMsgId; // capture before reset
+				this.finalizeStreamingMessages();
+				if (hasAudioResponse && !hadOutput) {
+					const messageId = `assistant_${Date.now()}_${Math.random()}`;
+					this.state.chat = [
+						...this.state.chat,
+						{
+							id: messageId,
+							role: "assistant",
+							text: "🎵 [Audio response]",
+							isStreaming: false,
+						},
+					];
+					this.notify();
+				}
+				// reset accumulators for next turn
+				this.currentInputTranscription = "";
+				this.currentOutputTranscription = "";
+				this.inputTranscriptionMsgId = null;
+				this.outputTranscriptionMsgId = null;
 			}
 
-			// Handle tool calls (note: native audio model has limited tool support)
-			if (message.toolCall?.functionCalls) {
+			if (message.toolCall?.functionCalls)
 				this.handleToolCall(message.toolCall);
-			}
 		} catch (error) {
 			console.error("[gemini-live] Error handling message:", error);
 		}
@@ -275,13 +316,9 @@ export class GeminiAdapter implements ProviderAdapter {
 
 	private async handleToolCall(toolCall: LiveServerToolCall): Promise<void> {
 		if (!toolCall.functionCalls || !this.session) return;
-
 		const responses: FunctionResponse[] = [];
-
 		for (const call of toolCall.functionCalls) {
 			if (!call.name || !call.id) continue;
-
-			// Find the corresponding tool handler
 			const tool = FLASHCARD_TOOLS.find((t) => t.name === call.name);
 			if (!tool) {
 				console.error(`[gemini-live] Unknown tool: ${call.name}`);
@@ -292,9 +329,7 @@ export class GeminiAdapter implements ProviderAdapter {
 				} as FunctionResponse);
 				continue;
 			}
-
 			try {
-				// Execute the tool
 				const result = await tool.handler(call.args || {});
 				responses.push({
 					id: call.id,
@@ -313,9 +348,7 @@ export class GeminiAdapter implements ProviderAdapter {
 				} as FunctionResponse);
 			}
 		}
-
-		// Send tool responses back to the session
-		if (responses.length > 0) {
+		if (responses.length) {
 			try {
 				this.session.sendToolResponse({ functionResponses: responses });
 			} catch (error) {
@@ -327,54 +360,35 @@ export class GeminiAdapter implements ProviderAdapter {
 	private base64ToInt16Array(base64: string): Int16Array {
 		const binaryString = atob(base64);
 		const bytes = new Uint8Array(binaryString.length);
-		for (let i = 0; i < binaryString.length; i++) {
+		for (let i = 0; i < binaryString.length; i++)
 			bytes[i] = binaryString.charCodeAt(i);
-		}
-
 		const length = bytes.length / 2;
 		const int16Array = new Int16Array(length);
 		for (let i = 0; i < length; i++) {
 			const byte1 = bytes[i * 2] ?? 0;
 			const byte2 = bytes[i * 2 + 1] ?? 0;
 			const sample = byte1 | (byte2 << 8);
-			const normalizedSample = sample >= 32768 ? sample - 65536 : sample;
-			int16Array[i] = normalizedSample;
+			int16Array[i] = sample >= 32768 ? sample - 65536 : sample;
 		}
-
 		return int16Array;
 	}
 
 	async start(): Promise<void> {
 		if (this.state.active) return;
-
 		try {
-			// Get API key
 			const response = await fetch("/api/gemini/key", { method: "POST" });
 			if (!response.ok) throw new Error("Failed to obtain Gemini API key");
 			const { apiKey } = (await response.json()) as { apiKey: string };
-
-			if (!apiKey) {
-				throw new Error("No Gemini API key provided");
-			}
-
-			console.log("[gemini-live] API key received, length:", apiKey.length);
-
-			// Initialize Google GenAI with API key
+			if (!apiKey) throw new Error("No Gemini API key provided");
 			this.ai = new GoogleGenAI({ apiKey });
-
 			this.session = await this.ai.live.connect({
 				model: "gemini-2.5-flash-preview-native-audio-dialog",
 				config: {
 					responseModalities: [Modality.AUDIO],
-					// Enable transcriptions for debugging / UX (can display later)
 					inputAudioTranscription: {},
 					outputAudioTranscription: {},
 					realtimeInputConfig: {
-						automaticActivityDetection: {
-							// Keep automatic detection but rely on our manual gating to reduce noise
-							// We still send audioStreamEnd explicitly; model VAD remains a fallback.
-							disabled: false,
-						},
+						automaticActivityDetection: { disabled: false },
 					},
 					systemInstruction:
 						"You are a helpful language learning assistant. You can help users practice with flashcards and answer questions about language learning. You have access to flashcard tools to help with practice sessions - you can get the current flashcard, flip it to show the answer, advance to the next card, or restart the deck. Respond concisely in speech.",
@@ -383,7 +397,6 @@ export class GeminiAdapter implements ProviderAdapter {
 							functionDeclarations: FLASHCARD_TOOLS.map((tool) => ({
 								name: tool.name,
 								description: tool.description,
-								// Convert to parametersJsonSchema since parameters are empty/simple
 								parametersJsonSchema: tool.parameters,
 							})),
 						},
@@ -391,40 +404,24 @@ export class GeminiAdapter implements ProviderAdapter {
 				},
 				callbacks: {
 					onopen: () => {
-						console.log("[gemini-live] Connected to Gemini Live");
 						this.state.active = true;
 						this.state.error = null;
 						this.notify();
 					},
-					onmessage: (message: LiveServerMessage) => {
-						this.handleMessage(message);
-					},
+					onmessage: (m: LiveServerMessage) => this.handleMessage(m),
 					onerror: (error: ErrorEvent) => {
-						console.error("[gemini-live] Error:", error);
 						this.state.error = new Error(error.message || "Connection error");
 						this.state.active = false;
 						this.notify();
 					},
-					onclose: (event: CloseEvent) => {
-						console.log(
-							"[gemini-live] Disconnected. Code:",
-							event?.code,
-							"Reason:",
-							event?.reason,
-						);
+					onclose: () => {
 						this.state.active = false;
 						this.notify();
 					},
 				},
 			});
-
-			// Setup microphone
 			await this.setupMic();
-
-			// Session is ready for audio-only interaction
-			console.log("[gemini-live] Audio-only session ready");
 		} catch (error) {
-			console.error("[gemini-live] Start error:", error);
 			this.state.error = error as Error;
 			this.notify();
 			throw error;
@@ -437,34 +434,32 @@ export class GeminiAdapter implements ProviderAdapter {
 				clearInterval(this.flushTimer);
 				this.flushTimer = null;
 			}
-
 			if (this.session) {
 				this.session.close();
 				this.session = null;
 			}
-
 			if (this.micStream) {
 				for (const t of this.micStream.getTracks()) t.stop();
 				this.micStream = null;
 			}
-
 			if (this.inputAudioCtx) {
 				this.inputAudioCtx.close().catch(() => {});
 				this.inputAudioCtx = null;
 			}
-
 			if (this.outputAudioCtx) {
 				this.outputAudioCtx.close().catch(() => {});
 				this.outputAudioCtx = null;
 			}
-
 			this.ai = null;
 		} catch (error) {
-			console.error("[gemini-live] Stop error:", error);
+			console.error("[gemini-live] Stop error", error);
 		}
-
 		this.nextPlayTime = 0;
 		this.lastFrameTime = 0;
+		this.currentInputTranscription = "";
+		this.currentOutputTranscription = "";
+		this.inputTranscriptionMsgId = null;
+		this.outputTranscriptionMsgId = null;
 		this.state.active = false;
 		this.state.chat = [];
 		this.state.error = null;
@@ -474,40 +469,30 @@ export class GeminiAdapter implements ProviderAdapter {
 	reset(): void {
 		this.state.chat = [];
 		this.nextPlayTime = 0;
+		this.currentInputTranscription = "";
+		this.currentOutputTranscription = "";
+		this.inputTranscriptionMsgId = null;
+		this.outputTranscriptionMsgId = null;
 		this.notify();
 	}
 
 	sendUserText(text: string): void {
 		if (!this.session || !this.state.active || !text.trim()) return;
-
 		const userMsgId = `user_${Date.now()}`;
-		this.state.chat.push({
-			id: userMsgId,
-			role: "user",
-			text: text.trim(),
-			isStreaming: false,
-		});
+		this.state.chat = [
+			...this.state.chat,
+			{ id: userMsgId, role: "user", text: text.trim(), isStreaming: false },
+		];
 		this.notify();
-
 		this.session.sendClientContent({
-			turns: [
-				{
-					role: "user",
-					parts: [
-						{
-							text: text.trim(),
-						},
-					],
-				},
-			],
+			turns: [{ role: "user", parts: [{ text: text.trim() }] }],
 			turnComplete: true,
 		});
 	}
 
 	sendUserAudioChunk(pcm16: Int16Array): void {
-		if (this.session && this.state.active && pcm16 && pcm16.length > 0) {
+		if (this.session && this.state.active && pcm16?.length)
 			this.sendAudioFrame(pcm16);
-		}
 	}
 
 	getState(): ProviderAdapterState {

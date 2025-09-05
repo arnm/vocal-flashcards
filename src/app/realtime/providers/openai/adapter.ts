@@ -212,12 +212,6 @@ export class OpenAIAdapter implements ProviderAdapter {
 			await this.setupMic();
 			this.state.active = true;
 			this.setChatFromConversation();
-			client.sendUserMessageContent([
-				{
-					type: "input_text",
-					text: "Hello! Please introduce yourself and let me know how you can help me with my language learning and flashcards.",
-				},
-			]);
 		} catch (e) {
 			this.state.error = e as Error;
 			this.notify();
