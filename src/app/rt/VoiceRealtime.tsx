@@ -1,12 +1,11 @@
 "use client";
-import { useState } from "react";
+import { Button } from "~/components/ui/button";
+import { ScrollArea } from "~/components/ui/scroll-area";
 import { useRealtime } from "./useRealtime";
+import { Mic, Square, RotateCcw } from "lucide-react";
 
 export default function VoiceRealtime() {
-	const { active, start, stop, chat, sendUserText } = useRealtime();
-	const [input, setInput] = useState("");
-
-	console.log("Current chat state:", chat);
+	const { active, start, stop, chat, reset } = useRealtime();
 
 	const toggle = async () => {
 		if (active) {
@@ -15,68 +14,81 @@ export default function VoiceRealtime() {
 			await start();
 		}
 	};
-	const send = () => {
-		if (!input.trim()) return;
-		sendUserText(input.trim());
-		setInput("");
-	};
 
 	return (
-		<div
-			style={{ fontFamily: "sans-serif", maxWidth: 480, margin: "1rem auto" }}
-		>
-			<button
-				onClick={toggle}
-				style={{
-					width: 70,
-					height: 70,
-					borderRadius: "50%",
-					border: "none",
-					background: active ? "#e74c3c" : "#2ecc71",
-					color: "#fff",
-					fontSize: 16,
-				}}
-			>
-				{active ? "Stop" : "Mic"}
-			</button>
-			<div style={{ marginTop: 12, display: "flex", gap: 6 }}>
-				<input
-					style={{ flex: 1, padding: "6px 8px" }}
-					disabled={!active}
-					value={input}
-					placeholder="Type message"
-					onChange={(e) => setInput(e.target.value)}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") send();
-					}}
-				/>
-				<button disabled={!active || !input.trim()} onClick={send}>
-					Send
-				</button>
-			</div>
-			<div
-				style={{
-					marginTop: 20,
-					border: "1px solid #ddd",
-					padding: 10,
-					borderRadius: 6,
-					maxHeight: 360,
-					overflowY: "auto",
-					background: "#fafafa",
-					fontSize: 14,
-				}}
-			>
-				{chat.map((m) => (
-					<div
-						key={m.id}
-						style={{ marginBottom: 6, opacity: m.pending ? 0.6 : 1 }}
+		<div className="flex w-full flex-col items-center gap-6">
+			<div className="flex items-center gap-4">
+				<div className="flex flex-col items-center gap-2">
+					<Button
+						variant={active ? "destructive" : "default"}
+						onClick={toggle}
+						className={`relative h-20 w-20 rounded-full p-0 text-white shadow-md transition hover:shadow-lg ${
+							active ? "" : "bg-primary"
+						}`}
 					>
-						<strong>{m.role === "user" ? "You" : "Assistant"}:</strong> {m.text}
+						{active && (
+							<span
+								className="absolute inset-0 -z-10 animate-ping rounded-full bg-red-500/40"
+								aria-hidden="true"
+							/>
+						)}
+						{active ? (
+							<Square className="h-8 w-8" />
+						) : (
+							<Mic className="h-8 w-8" />
+						)}
+						<span className="sr-only">
+							{active ? "Stop recording" : "Start recording"}
+						</span>
+					</Button>
+					<div className="text-xs font-medium text-muted-foreground">
+						{active ? "Listening..." : "Idle"}
 					</div>
-				))}
-				{chat.length === 0 && (
-					<div style={{ color: "#888" }}>No messages yet.</div>
-				)}
+				</div>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={reset}
+					disabled={!chat.length && !active}
+					className="hover:text-foreground text-muted-foreground"
+				>
+					<RotateCcw className="mr-1 h-4 w-4" /> Reset
+				</Button>
+			</div>
+			<div className="w-full overflow-hidden rounded-xl border border-border/50 bg-background/60 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/40">
+				<ScrollArea className="h-80 pr-4">
+					<div className="flex flex-col gap-3">
+						{chat.map((m) => (
+							<div
+								key={m.id}
+								className={`flex ${
+									m.role === "user" ? "justify-end" : "justify-start"
+								}`}
+							>
+								<div
+									className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ring-1 ring-border/40 ${
+										m.role === "user"
+											? "bg-primary text-primary-foreground"
+											: "bg-muted text-foreground"
+									} ${m.isStreaming ? "opacity-70" : ""}`}
+								>
+									<span>
+										{m.text ||
+											(m.role === "user" ? "(You spoke)" : "(Thinking...)")}
+									</span>
+									{m.isStreaming && (
+										<span className="ml-1 inline-block h-4 w-1 animate-pulse rounded bg-current align-middle" />
+									)}
+								</div>
+							</div>
+						))}
+						{!chat.length && (
+							<div className="text-center text-sm text-muted-foreground">
+								No messages yet. Press the mic to start.
+							</div>
+						)}
+					</div>
+				</ScrollArea>
 			</div>
 		</div>
 	);

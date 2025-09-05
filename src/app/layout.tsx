@@ -2,6 +2,8 @@ import "~/styles/globals.css";
 
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { ThemeProvider } from "./theme-provider";
+import { ModeToggle } from "~/components/mode-toggle";
 
 export const metadata: Metadata = {
 	title: "Create T3 App",
@@ -18,8 +20,20 @@ export default function RootLayout({
 	children,
 }: Readonly<{ children: React.ReactNode }>) {
 	return (
-		<html lang="en" className={`${geist.variable}`}>
-			<body>{children}</body>
+		<html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
+			<body>
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					<div className="absolute top-4 right-4">
+						<ModeToggle />
+					</div>
+					{children}
+				</ThemeProvider>
+			</body>
 		</html>
 	);
 }
