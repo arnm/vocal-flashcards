@@ -1,49 +1,57 @@
-# Vocal Flashcards
+# 🎤 Vocal Flashcards
 
-A realtime voice-enabled flashcard application built with the T3 Stack, supporting both OpenAI Realtime API and Google Gemini Live.
+> **A comprehensive reference implementation for building realtime voice applications with OpenAI and Gemini APIs**
 
-## Realtime Providers
+This educational repository demonstrates how to integrate cutting-edge voice AI technologies into modern web applications. Perfect for developers looking to understand and implement realtime voice interactions in their own projects.
 
-This app supports multiple realtime AI providers through a unified interface:
+## 🌟 What You'll Learn
 
-- **OpenAI Realtime**: Full voice chat with bidirectional audio, text streaming, and tool calls
-- **Gemini Live**: Text-based interaction with tool calls (audio support coming soon)
+This app showcases real-world implementation of:
 
-### Environment Setup
+- **OpenAI Realtime API** - Bidirectional voice chat with streaming audio and tool calls
+- **Google Gemini Live** - Advanced text interactions with tool calling capabilities
+- **Unified Provider Interface** - Clean abstraction layer for switching between AI providers
+- **Voice Processing** - Audio worklets, real-time streaming, and voice activity detection
+- **Modern React Patterns** - State management, TypeScript, and component architecture
 
-Required environment variables:
+## 🚀 Quick Start
 
+```bash
+git clone <this-repo>
+cd vocal-flashcards
+bun install
+cp .env.example .env  # Add your API keys
+bun run dev
+```
+
+**Environment Setup:**
 ```bash
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=AIza...  # Optional, for Gemini provider
 ```
 
-### Provider Toggle
+Open [http://localhost:3000](http://localhost:3000) and start exploring!
 
-Use the provider toggle in the UI to switch between OpenAI and Gemini at runtime. The app maintains separate chat states per provider.
+## 🔧 Key Features to Study
 
-## What's next? How do I make an app with this?
+- ✅ **Runtime Provider Switching** - Toggle between OpenAI and Gemini without page reload
+- ✅ **Voice Activity Detection** - Smart audio processing and silence detection
+- ✅ **Tool Calling** - AI agents that can interact with your application state
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+## 🏗️ Architecture Highlights
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+- **Provider Abstraction** (`src/app/realtime/providers/`) - Clean interfaces for different AI providers
+- **Audio Processing** (`src/lib/audio*.ts`) - Real-time audio handling and worklets
+- **State Management** (`src/lib/flashcardsStore.ts`) - Zustand for predictable state updates
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+## 📚 Development Guide
 
-## Learn More
+For detailed development information including build commands, code style guidelines, and technical specifications, see [AGENTS.md](./AGENTS.md).
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+## 🤝 Contributing
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+Found a bug or have an improvement? Contributions are welcome! This is an educational resource, so clear, well-documented code is especially appreciated.
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+---
 
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+*This project serves as a reference implementation and learning resource for the developer community. Feel free to use it as a starting point for your own voice-enabled applications!*
