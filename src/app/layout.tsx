@@ -31,7 +31,9 @@ export default function RootLayout({
 					<div className="absolute top-4 right-4">
 						<ModeToggle />
 					</div>
-					{children}
+					<main className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col justify-center px-4 pt-20 pb-8">
+						{children}
+					</main>
 				</ThemeProvider>
 			</body>
 		</html>

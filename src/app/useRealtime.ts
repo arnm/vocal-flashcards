@@ -299,6 +299,14 @@ export function useRealtime() {
 		await setupMic();
 		setActive(true);
 		refreshChat();
+
+		// Send initial greeting
+		client.sendUserMessageContent([
+			{
+				type: "input_text",
+				text: "Hello! Please introduce yourself and let me know how you can help me with my language learning and flashcards.",
+			},
+		]);
 	}, [refreshChat, setupMic, playAudioChunk]);
 
 	const stop = useCallback(() => {
