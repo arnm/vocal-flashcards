@@ -1,8 +1,8 @@
 "use client";
 import { Mic, RotateCcw, Square } from "lucide-react";
+import { FlashcardViewer } from "~/components/FlashcardViewer";
 import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { FlashcardViewer } from "~/components/FlashcardViewer";
 import { useRealtime } from "./useRealtime";
 
 export default function VoiceRealtime() {

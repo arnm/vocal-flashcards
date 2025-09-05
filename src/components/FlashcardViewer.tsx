@@ -1,7 +1,7 @@
 "use client";
+import { ArrowRight, Eye, RotateCcw } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { RotateCcw, Eye, ArrowRight } from "lucide-react";
 import { useFlashcardsStore } from "~/lib/flashcardsStore";
 
 export function FlashcardViewer() {
@@ -21,7 +21,7 @@ export function FlashcardViewer() {
 
 	if (!currentCard) {
 		return (
-			<Card className="w-full max-w-md mx-auto">
+			<Card className="mx-auto w-full max-w-md">
 				<CardContent className="pt-6">
 					<div className="text-center text-muted-foreground">
 						No flashcards available
@@ -32,20 +32,20 @@ export function FlashcardViewer() {
 	}
 
 	return (
-		<Card className="w-full max-w-md mx-auto">
+		<Card className="mx-auto w-full max-w-md">
 			<CardHeader>
-				<CardTitle className="text-center text-sm text-muted-foreground">
+				<CardTitle className="text-center text-muted-foreground text-sm">
 					Card {index + 1} of {cards.length}
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				<div className="min-h-[120px] flex items-center justify-center rounded-lg border-2 border-dashed border-border p-6">
+				<div className="flex min-h-[120px] items-center justify-center rounded-lg border-2 border-border border-dashed p-6">
 					<div className="text-center">
-						<div className="text-lg font-medium">
+						<div className="font-medium text-lg">
 							{showBack ? currentCard.back : currentCard.front}
 						</div>
 						{!showBack && (
-							<div className="mt-2 text-xs text-muted-foreground">
+							<div className="mt-2 text-muted-foreground text-xs">
 								Click "Flip" to see the answer
 							</div>
 						)}
@@ -76,7 +76,7 @@ export function FlashcardViewer() {
 				)}
 
 				{completed && (
-					<div className="text-center text-sm text-green-600 font-medium">
+					<div className="text-center font-medium text-green-600 text-sm">
 						🎉 You completed all flashcards!
 					</div>
 				)}
