@@ -9,7 +9,7 @@ export const env = createEnv({
 	server: {
 		NODE_ENV: z.enum(["development", "test", "production"]),
 		OPENAI_API_KEY: z.string(),
-		GEMINI_API_KEY: z.string().optional(),
+		GEMINI_API_KEY: z.string(),
 	},
 
 	/**

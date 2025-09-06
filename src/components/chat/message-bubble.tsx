@@ -1,9 +1,24 @@
 "use client";
+import { useEffect, useState } from "react";
 import type { ChatMessage } from "~/lib/realtime/types";
 import { cn } from "~/lib/utils";
 
 interface MessageBubbleProps {
 	message: ChatMessage;
+}
+
+function AnimatedDots() {
+	const frames = [".  ", ".. ", "..."] as const; // fixed width 3 chars
+	const [idx, setIdx] = useState(0);
+
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setIdx((i) => (i + 1) % frames.length);
+		}, 500);
+		return () => clearInterval(interval);
+	}, []);
+
+	return <span className="inline-block w-3 tabular-nums">{frames[idx]}</span>;
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
@@ -20,7 +35,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 				)}
 			>
 				<span>
-					{message.text || (isUser ? "(You spoke)" : "(Thinking...)")}
+					{message.text ||
+						(isUser ? (
+							<>
+								Transcribing
+								<AnimatedDots />
+							</>
+						) : (
+							"(Thinking...)"
+						))}
 				</span>
 				{message.isStreaming && (
 					<span className="ml-1 inline-block h-4 w-1 animate-pulse rounded bg-current align-middle" />
