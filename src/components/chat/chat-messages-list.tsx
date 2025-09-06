@@ -17,11 +17,14 @@ export function ChatMessagesList({
 	reserveBottomSpace = false,
 }: ChatMessagesListProps) {
 	return (
-		<div ref={scrollRef} className="h-full">
+		<div ref={scrollRef} className="flex max-h-full min-h-0 flex-1">
 			<ScrollArea
-				className={cn("h-full pr-3", reserveBottomSpace ? "pb-16" : "pb-4")}
+				className={cn(
+					"flex max-h-full min-h-0 w-full flex-1 pr-3",
+					reserveBottomSpace ? "pb-16" : "pb-4",
+				)}
 			>
-				<div className="flex flex-col gap-3 p-4 pt-2">
+				<div className="flex min-h-full flex-col justify-end gap-3 p-4 pt-2">
 					{chat.map((m) => (
 						<MessageBubble key={m.id} message={m} />
 					))}

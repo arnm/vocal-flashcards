@@ -68,7 +68,7 @@ export function ChatComposer({
 			<form onSubmit={handleSubmit(submit)} className="flex items-center gap-2">
 				<div className="relative flex flex-1 items-center">
 					{/* Using shadcn Input component */}
-					{/* @ts-expect-error react-hook-form register spread */}
+
 					<Input
 						{...register("message")}
 						placeholder={active ? "Type a message..." : "Press mic to start"}
