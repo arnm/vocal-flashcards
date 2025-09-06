@@ -2,8 +2,10 @@ import "~/styles/globals.css";
 
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Github } from "lucide-react";
 import { ModeToggle } from "~/components/theme/mode-toggle";
 import { ThemeProvider } from "~/components/theme/theme-provider";
+import { Button } from "~/components/ui/button";
 
 export const metadata: Metadata = {
 	title: "Create T3 App",
@@ -28,7 +30,23 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<div className="absolute top-4 right-4">
+					<div className="pointer-events-auto absolute top-4 right-4 z-50 flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="icon"
+							asChild
+							aria-label="GitHub repository"
+						>
+							<a
+								href="https://github.com/arnm/vocal-flashcards"
+								target="_blank"
+								rel="noopener noreferrer"
+								title="Open GitHub repository"
+							>
+								<Github className="h-[1.2rem] w-[1.2rem]" />
+								<span className="sr-only">Open GitHub repository</span>
+							</a>
+						</Button>
 						<ModeToggle />
 					</div>
 					<main className="flex min-h-dvh w-full flex-col">{children}</main>
