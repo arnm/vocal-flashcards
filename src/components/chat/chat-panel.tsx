@@ -1,213 +1,176 @@
 "use client";
-import { ArrowDown, Mic, RotateCcw, Send, Square } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChatComposer } from "~/components/chat/chat-composer";
+import { ChatMessagesList } from "~/components/chat/chat-messages-list";
 import { ProviderToggle } from "~/components/chat/provider-toggle";
+import { useAutoScroll } from "~/components/chat/use-auto-scroll";
 import { FlashcardViewer } from "~/components/flashcards/flashcard-viewer";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { ScrollArea } from "~/components/ui/scroll-area";
 import { useRealtime } from "~/hooks/use-realtime";
+import { cn } from "~/lib/utils";
 
-interface MessageForm {
-	message: string;
-}
-
+// Hybrid layout:
+// - Toggle row sits in normal flow just above the composer (always visible & centered)
+// - Messages panel is absolutely positioned relative to the toggle row container and expands upward
+// - No panel (and no border) when collapsed => true compact idle state
+// - Flashcards never reflow/shift when panel opens (overlay)
 export default function VoiceRealtime() {
-	const {
-		active,
-		start,
-		stop,
-		chat,
-		sendUserText,
-		reset,
-		provider,
-		setProvider,
-	} = useRealtime();
-	const scrollAreaRef = useRef<HTMLDivElement>(null);
-	const [autoScroll, setAutoScroll] = useState(true);
+	const { active, start, stop, chat, sendUserText, provider, setProvider } =
+		useRealtime();
+	const { scrollAreaRef, autoScroll, enableAutoScroll } = useAutoScroll(chat);
 
-	const { register, handleSubmit, reset: resetForm } = useForm<MessageForm>();
+	const [open, setOpen] = useState(false);
+	const [unread, setUnread] = useState(0);
+	const lastCountRef = useRef<number>(0);
+	const composerRef = useRef<HTMLDivElement | null>(null);
+	const toggleRowRef = useRef<HTMLDivElement | null>(null);
 
-	const toggle = async () => {
-		if (active) {
-			stop();
-		} else {
-			await start();
-		}
-	};
+	const [composerHeight, setComposerHeight] = useState(96);
+	const [toggleHeight, setToggleHeight] = useState(40);
+	const [viewportHeight, setViewportHeight] = useState<number>(
+		typeof window !== "undefined" ? window.innerHeight : 0,
+	);
 
-	const onSubmit = (data: MessageForm) => {
-		if (data.message.trim()) {
-			sendUserText(data.message.trim());
-			resetForm();
-		}
-	};
-
-	const scrollToBottom = useCallback(() => {
-		if (scrollAreaRef.current) {
-			const scrollElement = scrollAreaRef.current.querySelector(
-				"[data-radix-scroll-area-viewport]",
-			);
-			if (scrollElement) {
-				scrollElement.scrollTop = scrollElement.scrollHeight;
-			}
-		}
+	// Viewport resize tracking
+	useEffect(() => {
+		const onResize = () => setViewportHeight(window.innerHeight);
+		onResize();
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
 	}, []);
 
-	const enableAutoScroll = () => {
-		setAutoScroll(true);
-		scrollToBottom();
+	// Composer height observer (multiline growth safety)
+	useEffect(() => {
+		if (!composerRef.current) return;
+		const el = composerRef.current;
+		const ro = new ResizeObserver(() =>
+			setComposerHeight(el.getBoundingClientRect().height),
+		);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
+
+	// Toggle row height observer (future-proof if more controls added)
+	useEffect(() => {
+		if (!toggleRowRef.current) return;
+		const el = toggleRowRef.current;
+		const ro = new ResizeObserver(() =>
+			setToggleHeight(el.getBoundingClientRect().height),
+		);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
+
+	// Unread tracking while closed
+	useEffect(() => {
+		if (!open && chat.length > lastCountRef.current) {
+			setUnread((u) => u + (chat.length - lastCountRef.current));
+		}
+		lastCountRef.current = chat.length;
+	}, [chat.length, open]);
+
+	// Clear unread on open
+	useEffect(() => {
+		if (open && unread) setUnread(0);
+	}, [open, unread]);
+
+	// Scroll to bottom when opening
+	useEffect(() => {
+		if (open) enableAutoScroll();
+	}, [open, enableAutoScroll]);
+
+	// Force close if chat becomes empty
+	useEffect(() => {
+		if (chat.length === 0 && open) setOpen(false);
+	}, [chat.length, open]);
+
+	const toggleSession = async () => {
+		if (active) stop();
+		else await start();
 	};
 
-	useEffect(() => {
-		const viewport = scrollAreaRef.current?.querySelector(
-			"[data-radix-scroll-area-viewport]",
-		) as HTMLElement | null;
-		if (!viewport) return;
-
-		const handleScroll = () => {
-			const atBottom =
-				Math.abs(
-					viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop,
-				) < 2;
-			if (!atBottom && autoScroll) {
-				setAutoScroll(false);
-			}
-		};
-
-		viewport.addEventListener("scroll", handleScroll, { passive: true });
-		return () => viewport.removeEventListener("scroll", handleScroll);
-	}, [autoScroll]);
-
-	useEffect(() => {
-		if (autoScroll && chat.length > 0) {
-			setTimeout(scrollToBottom, 100);
-		}
-	}, [chat, autoScroll, scrollToBottom]);
+	// Compute available vertical space above toggle row (leave a top margin)
+	const availableAboveToggle = Math.max(
+		0,
+		viewportHeight - composerHeight - toggleHeight - 56 /* top safety margin */,
+	);
+	const maxPeekHeight = Math.min(300, Math.round(viewportHeight * 0.45));
+	const panelHeight = Math.min(availableAboveToggle, maxPeekHeight);
+	const panelId = "chat-panel";
 
 	return (
-		<div className="flex w-full max-w-3xl flex-col gap-6">
-			<div className="flex items-center justify-center">
-				<ProviderToggle provider={provider} onChangeAction={setProvider} />
+		<div className="flex h-dvh flex-col">
+			{/* Flashcards central area */}
+			<div className="relative flex flex-1 items-center justify-center px-4">
+				<div className="flex w-full max-w-3xl justify-center">
+					<FlashcardViewer />
+				</div>
 			</div>
-			<FlashcardViewer />
 
-			<div className="relative w-full overflow-hidden rounded-2xl border border-border/40 bg-background/50 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/30">
-				<ScrollArea className="h-80 pr-3 pb-16" ref={scrollAreaRef}>
-					<div className="flex flex-col gap-3 p-4">
-						{chat.map(
-							(message: {
-								id: string;
-								role: string;
-								text: string;
-								isStreaming?: boolean;
-							}) => (
-								<div
-									key={message.id}
-									className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-								>
-									<div
-										className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ring-1 transition ${
-											message.role === "user"
-												? "bg-primary/90 text-primary-foreground ring-primary/40"
-												: "bg-background/60 ring-border/40 backdrop-blur-sm"
-										} ${message.isStreaming ? "opacity-70" : "opacity-100"}`}
-									>
-										<span>
-											{message.text ||
-												(message.role === "user"
-													? "(You spoke)"
-													: "(Thinking...)")}
-										</span>
-										{message.isStreaming && (
-											<span className="ml-1 inline-block h-4 w-1 animate-pulse rounded bg-current align-middle" />
-										)}
-									</div>
-								</div>
-							),
-						)}
-						{!chat.length && (
-							<div className="text-center text-muted-foreground text-sm">
-								No messages yet. Use the mic or type a message.
+			{/* Toggle + upward expanding overlay panel (absolute) */}
+			<div className="px-4">
+				<div
+					ref={toggleRowRef}
+					className="relative mx-auto flex w-full max-w-3xl flex-col items-center"
+				>
+					{open && (
+						<div
+							id={panelId}
+							role="region"
+							aria-label="Chat messages"
+							className={cn(
+								"absolute bottom-full z-10 mb-1 w-full overflow-hidden rounded-md border bg-background/90 shadow-sm backdrop-blur transition-[height] duration-150 ease-out",
+							)}
+							style={{ height: panelHeight }}
+						>
+							<div className="relative flex h-full flex-col">
+								<ChatMessagesList chat={chat} scrollRef={scrollAreaRef} />
 							</div>
-						)}
-					</div>
-				</ScrollArea>
+						</div>
+					)}
 
-				{!autoScroll && (
-					<div className="pointer-events-none absolute inset-x-0 bottom-16 flex justify-center">
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={enableAutoScroll}
-							className="pointer-events-auto text-xs shadow-sm"
-						>
-							<ArrowDown className="mr-1 h-3 w-3" />
-							Jump to newest
-						</Button>
-					</div>
-				)}
-
-				<div className="absolute inset-x-0 bottom-0 border-border/40 border-t bg-background/80 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={reset}
-							disabled={!chat.length && !active}
-							className="h-9 w-9 shrink-0"
-							title="Reset conversation"
-						>
-							<RotateCcw className="h-4 w-4" />
-							<span className="sr-only">Reset</span>
-						</Button>
-
-						<form onSubmit={handleSubmit(onSubmit)} className="relative flex-1">
-							<Input
-								{...register("message")}
-								placeholder={
-									active
-										? "Type a message..."
-										: "Start session to type messages"
-								}
-								className="pr-20"
-								autoComplete="off"
-								disabled={!active}
-							/>
-							<div className="absolute inset-y-0 right-1 flex items-center gap-1">
-								<Button
-									onClick={toggle}
-									type="button"
-									size="icon"
-									className={`h-7 w-7 rounded-full ${
-										active
-											? "bg-red-500 text-white hover:bg-red-500/90"
-											: "bg-primary text-primary-foreground hover:bg-primary/90"
-									}`}
-									title={active ? "Stop recording" : "Start recording"}
-								>
-									{active ? (
-										<Square className="h-3 w-3" />
-									) : (
-										<Mic className="h-3 w-3" />
-									)}
-									<span className="sr-only">
-										{active ? "Stop recording" : "Start recording"}
+					{/* Centered controls row */}
+					<div className="flex items-center gap-2 py-1">
+						<ProviderToggle provider={provider} onChangeAction={setProvider} />
+						{chat.length > 0 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setOpen((o) => !o)}
+								aria-expanded={open}
+								aria-controls={open ? panelId : undefined}
+								className="group h-7 gap-1 font-medium text-xs"
+							>
+								{open ? (
+									<ChevronDown className="h-3 w-3 opacity-70 transition group-hover:opacity-100" />
+								) : (
+									<ChevronUp className="h-3 w-3 opacity-70 transition group-hover:opacity-100" />
+								)}
+								<span className="opacity-70 group-hover:opacity-100">
+									Chat ({chat.length})
+								</span>
+								{!open && unread > 0 && (
+									<span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/80 px-1 font-semibold text-[10px] text-primary-foreground">
+										{unread > 99 ? "99+" : unread}
 									</span>
-								</Button>
-								<Button
-									type="submit"
-									size="icon"
-									className="h-7 w-7"
-									disabled={!active}
-								>
-									<Send className="h-3 w-3" />
-									<span className="sr-only">Send message</span>
-								</Button>
-							</div>
-						</form>
+								)}
+							</Button>
+						)}
 					</div>
+				</div>
+			</div>
+
+			{/* Composer */}
+			<div ref={composerRef} className="px-4 pb-2">
+				<div className="mx-auto w-full max-w-3xl">
+					<ChatComposer
+						active={active}
+						onToggle={async () => void toggleSession()}
+						onSend={sendUserText}
+						showMic={!active && chat.length === 0}
+						micOnly={!active && chat.length === 0}
+					/>
 				</div>
 			</div>
 		</div>

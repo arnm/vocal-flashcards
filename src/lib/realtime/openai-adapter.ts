@@ -1,8 +1,8 @@
 "use client";
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { getAudioContextCtor } from "~/lib/audio";
-import { FLASHCARD_TOOLS } from "./tools";
 import { SYSTEM_PROMPT } from "./system-prompt";
+import { FLASHCARD_TOOLS } from "./tools";
 import type {
 	ChatMessage,
 	ProviderAdapter,
