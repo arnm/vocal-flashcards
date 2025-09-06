@@ -181,15 +181,42 @@ export class OpenAIAdapter implements ProviderAdapter {
 				instructions: SYSTEM_PROMPT,
 			});
 			// Tools
-			for (const tool of FLASHCARD_TOOLS)
+			console.log(
+				"[rt:openai] Setting up tools:",
+				FLASHCARD_TOOLS.map((t) => ({
+					name: t.name,
+					description: t.description,
+				})),
+			);
+
+			for (const tool of FLASHCARD_TOOLS) {
+				const wrappedHandler = async (args: Record<string, unknown>) => {
+					console.log(
+						`[rt:openai] Executing tool ${tool.name} with args:`,
+						args,
+					);
+					try {
+						const result = await tool.handler(args);
+						console.log(`[rt:openai] Tool ${tool.name} result:`, result);
+						return result;
+					} catch (error) {
+						console.error(
+							`[rt:openai] Tool execution error for ${tool.name}:`,
+							error,
+						);
+						throw error;
+					}
+				};
+
 				client.addTool(
 					{
 						name: tool.name,
 						description: tool.description,
 						parameters: tool.parameters,
 					},
-					tool.handler,
+					wrappedHandler,
 				);
+			}
 			const onConvChange = (event: { delta?: { audio?: Int16Array } }) => {
 				if (event.delta?.audio) this.playAudioChunk(event.delta.audio);
 				this.setChatFromConversation();

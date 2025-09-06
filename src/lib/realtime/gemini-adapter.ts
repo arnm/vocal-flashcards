@@ -283,13 +283,28 @@ export class GeminiAdapter implements ProviderAdapter {
 	}
 
 	private async handleToolCall(toolCall: LiveServerToolCall): Promise<void> {
+		console.log("[gemini-live] Received tool call:", toolCall);
+
 		if (!toolCall.functionCalls || !this.session) return;
+
+		console.log(
+			"[gemini-live] Processing function calls:",
+			toolCall.functionCalls,
+		);
+
 		const responses: FunctionResponse[] = [];
 		for (const call of toolCall.functionCalls) {
 			if (!call.name || !call.id) continue;
+
+			console.log(`[gemini-live] Looking for tool: ${call.name}`);
 			const tool = FLASHCARD_TOOLS.find((t) => t.name === call.name);
+
 			if (!tool) {
 				console.error(`[gemini-live] Unknown tool: ${call.name}`);
+				console.log(
+					"[gemini-live] Available tools:",
+					FLASHCARD_TOOLS.map((t) => t.name),
+				);
 				responses.push({
 					id: call.id,
 					name: call.name,
@@ -298,7 +313,13 @@ export class GeminiAdapter implements ProviderAdapter {
 				continue;
 			}
 			try {
+				console.log(
+					`[gemini-live] Executing tool ${call.name} with args:`,
+					call.args,
+				);
 				const result = await tool.handler(call.args || {});
+				console.log(`[gemini-live] Tool ${call.name} result:`, result);
+
 				responses.push({
 					id: call.id,
 					name: call.name,
@@ -318,6 +339,7 @@ export class GeminiAdapter implements ProviderAdapter {
 		}
 		if (responses.length) {
 			try {
+				console.log("[gemini-live] Sending tool responses:", responses);
 				this.session.sendToolResponse({ functionResponses: responses });
 			} catch (error) {
 				console.error("[gemini-live] Error sending tool response:", error);
@@ -349,6 +371,15 @@ export class GeminiAdapter implements ProviderAdapter {
 			const { apiKey } = (await response.json()) as { apiKey: string };
 			if (!apiKey) throw new Error("No Gemini API key provided");
 			this.ai = new GoogleGenAI({ apiKey });
+
+			const tools = FLASHCARD_TOOLS.map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+				parametersJsonSchema: tool.parameters,
+			}));
+
+			console.log("[gemini-live] Setting up session with tools:", tools);
+
 			this.session = await this.ai.live.connect({
 				model: "gemini-2.5-flash-preview-native-audio-dialog",
 				config: {
@@ -361,11 +392,7 @@ export class GeminiAdapter implements ProviderAdapter {
 					systemInstruction: SYSTEM_PROMPT,
 					tools: [
 						{
-							functionDeclarations: FLASHCARD_TOOLS.map((tool) => ({
-								name: tool.name,
-								description: tool.description,
-								parametersJsonSchema: tool.parameters,
-							})),
+							functionDeclarations: tools,
 						},
 					],
 				},
